@@ -70,8 +70,15 @@ namespace WpfSqlConnectDialog
         /// <param name="canExecute">The execution status logic.</param>
         public RelayCommand(Action<T> execute, Predicate<T> canExecute)
         {
-            _execute = execute ?? throw new ArgumentNullException("execute");
-            _canExecute = canExecute;
+            if (execute == null)
+            {
+                throw new ArgumentNullException("execute");
+            }
+            else
+            {
+                _execute = execute;
+                _canExecute = canExecute;
+            }
         }
 
         #endregion
