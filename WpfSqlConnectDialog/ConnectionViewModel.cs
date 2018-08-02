@@ -10,6 +10,8 @@ namespace WpfSqlConnectDialog
 {
     public class ConnectionViewModel : ViewModelBase
     {
+        public string cConnectString;
+
         private ObservableCollection<string> m_ServerList;
         public ObservableCollection<string> ServerList
         {
@@ -80,18 +82,6 @@ namespace WpfSqlConnectDialog
             }
         }
 
-        public ConnectionViewModel()
-        {
-            ServerList = new ObservableCollection<string>();
-            DatabaseList = new ObservableCollection<string>();
-            AuthItems = new ObservableCollection<string>
-            {
-                "Windows-Authentifizierung",
-                "SQL-Server Authentifizierung"
-            };
-            SelectedAuth = "Windows-Authentifizierung";
-        }
-
         private string m_SelectedAuth;
         public string SelectedAuth
         {
@@ -129,10 +119,68 @@ namespace WpfSqlConnectDialog
             }
         }
 
+        private string m_AuthUser;
+        public string AuthUser
+        {
+            get
+            {
+                return m_AuthUser;
+            }
+            set
+            {
+                m_AuthUser = value;
+                NotifyPropertyChanged("AuthUser");
+            }
+        }
+
+        private string m_AuthPass;
+        public string AuthPass
+        {
+            get
+            {
+                return m_AuthPass;
+            }
+            set
+            {
+                m_AuthPass = value;
+                NotifyPropertyChanged("AuthPass");
+            }
+        }
+
+        private bool m_IsConOkay;
+        public bool IsConOkay
+        {
+            get
+            {
+                return m_IsConOkay;
+            }
+            set
+            {
+                m_IsConOkay = value;
+                NotifyPropertyChanged("IsConOkay");
+            }
+        }
+
+        public ConnectionViewModel()
+        {
+            ServerList = new ObservableCollection<string>();
+            DatabaseList = new ObservableCollection<string>();
+            AuthItems = new ObservableCollection<string>
+            {
+                "Windows-Authentifizierung",
+                "SQL-Server Authentifizierung"
+            };
+            SelectedAuth = "Windows-Authentifizierung";
+            IsConOkay = false;
+        }
+
+
         #region Commands
         public ICommand RefreshCmd { get { return new RelayCommand(OnRefresh, AlwaysTrue); } }
         public ICommand RefreshDbCmd { get { return new RelayCommand(OnRefreshDb, AlwaysTrue); } }
         public ICommand TestCmd { get { return new RelayCommand(OnTestCon, AlwaysTrue); } }
+        public ICommand OkCmd { get { return new RelayCommand(OnOk, AlwaysTrue); } }
+        public ICommand AbortCmd { get { return new RelayCommand(OnAbort, AlwaysTrue); } }
 
         private bool AlwaysTrue() { return true; }
         private bool AlwaysFalse() { return false; }
@@ -156,14 +204,40 @@ namespace WpfSqlConnectDialog
                 {
                     connection.Open();
                     MessageBox.Show("Verbindung erfolgreich hergestellt zu : " + cConStr);
+                    IsConOkay = true;
                 }
                 catch (Exception e)
                 {
                     MessageBox.Show("Verbindung fehlgeschlagen: " + e.Message);
+                    IsConOkay = false;
                 }
                 finally
                 {
                     connection.Close();
+                }
+            }
+        }
+
+        private void OnOk()
+        {
+            foreach (Window item in Application.Current.Windows)
+            {
+                if (item.DataContext == this)
+                {
+                    cConnectString = GetSqlConString();
+                    item.Close();
+                }
+            }
+        }
+
+        private void OnAbort()
+        {
+            foreach (Window item in Application.Current.Windows)
+            {
+                if (item.DataContext == this)
+                {
+                    cConnectString = "";
+                    item.Close();
                 }
             }
         }
@@ -177,7 +251,10 @@ namespace WpfSqlConnectDialog
             System.Data.DataTable table = instance.GetDataSources();
             foreach (System.Data.DataRow oRow in table.Rows)
             {
-                ServerList.Add((string)oRow[0]);
+                var ServerName = oRow[0].GetType() == typeof(DBNull) ? "" : (string)oRow[0];
+                var InstanceName = oRow[1].GetType() == typeof(DBNull) ? "" : (string)oRow[1];
+                var Version = oRow[3].GetType() == typeof(DBNull) ? "" : (string)oRow[3];
+                ServerList.Add(ServerName + " (" + InstanceName + ") " + " / " + Version);
             }
         }
 
